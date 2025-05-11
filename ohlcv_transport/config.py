@@ -24,7 +24,7 @@ DEFAULT_CONFIG_PATH = Path(os.path.expanduser("~/.ohlcv_transport/config.json"))
 DEFAULT_CONFIG = {
     "api": {
         "twelve_data": {
-            "api_key": "eae5ad06a7a14217b4429c50dcf27855",
+            "api_key": "",  # Remove default API key
             "base_url": "https://api.twelvedata.com",
             "rate_limit": {
                 "calls_per_minute": 8,
@@ -34,8 +34,8 @@ DEFAULT_CONFIG = {
     },
     "assets": {
         "symbols": ["SPY", "QQQ", "IWM", "GLD", "TLT"],
-        "timeframes": ["1min", "5min", "15min", "1hour"],
-        "default_timeframe": "1min"
+        "timeframes": ["1min", "5min", "15min", "1h", "1day"],  # Changed '1hour' to '1h' to match API
+        "default_timeframe": "1day"  # Changed default to '1day' for better reliability
     },
     "trading": {
         "position_sizing": {
