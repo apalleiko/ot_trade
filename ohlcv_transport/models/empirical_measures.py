@@ -112,8 +112,8 @@ def calculate_supply_weights(price_grid: np.ndarray,
     normal_component = normal_density(price_grid, avg_price, price_vol)
     
     # Calculate power law component: ((p - L)/(H - L))^α
-    # Clip to avoid negative values
-    power_component = np.maximum(0, (price_grid - low) / price_range) ** alpha
+    # Clip to avoid negative values and ensure a small positive value to prevent division by zero
+    power_component = np.maximum(1e-10, (price_grid - low) / price_range) ** alpha
     
     # Combined weighting function
     weights = normal_component * power_component
@@ -159,8 +159,8 @@ def calculate_demand_weights(price_grid: np.ndarray,
     normal_component = normal_density(price_grid, avg_price, price_vol)
     
     # Calculate power law component: ((H - p)/(H - L))^α
-    # Clip to avoid negative values
-    power_component = np.maximum(0, (high - price_grid) / price_range) ** alpha
+    # Clip to avoid negative values and ensure a small positive value to prevent division by zero
+    power_component = np.maximum(1e-10, (high - price_grid) / price_range) ** alpha
     
     # Combined weighting function
     weights = normal_component * power_component
@@ -206,8 +206,9 @@ class EmpiricalMeasure:
         """
         if self.weights.sum() == 0:
             return 0.0
-            
-        return np.sum(self.price_grid * self.weights) / np.sum(self.weights)
+        
+        # Calculate using float64 precision and convert to Python float to avoid test precision issues
+        return float(np.sum(self.price_grid * self.weights) / np.sum(self.weights))
     
     def _calculate_variance(self) -> float:
         """
@@ -218,8 +219,9 @@ class EmpiricalMeasure:
         """
         if self.weights.sum() == 0:
             return 0.0
-            
-        return np.sum(((self.price_grid - self.mean) ** 2) * self.weights) / np.sum(self.weights)
+        
+        # Calculate using float64 precision and convert to Python float
+        return float(np.sum(((self.price_grid - self.mean) ** 2) * self.weights) / np.sum(self.weights))
     
     def to_sparse(self, threshold: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -227,12 +229,17 @@ class EmpiricalMeasure:
         
         Args:
             threshold: Relative threshold for weight significance
+                      (as a fraction of the maximum weight)
         
         Returns:
             Tuple of (price_points, weights) for significant weights
         """
         # Calculate absolute threshold based on max weight
-        abs_threshold = np.max(self.weights) * threshold
+        max_weight = np.max(self.weights)
+        if max_weight <= 0:
+            return np.array([]), np.array([])
+            
+        abs_threshold = max_weight * threshold
         
         # Find indices of significant weights
         significant_indices = np.where(self.weights > abs_threshold)[0]
@@ -395,16 +402,21 @@ def calculate_measure_statistics(measures: List[EmpiricalMeasure]) -> Dict[str, 
             'mean_mass': None
         }
     
-    # Calculate statistics
-    means = [m.mean for m in measures]
-    variances = [m.variance for m in measures]
-    masses = [m.total_mass for m in measures]
+    # Calculate statistics - using Python floats to avoid numpy data types in test comparisons
+    means = [float(m.mean) for m in measures]
+    variances = [float(m.variance) for m in measures]
+    masses = [float(m.total_mass) for m in measures]
+    
+    # Explicitly dividing by length to ensure consistent behavior
+    mean_price = sum(means) / len(means)
+    mean_variance = sum(variances) / len(variances)
+    mean_mass = sum(masses) / len(masses)
     
     return {
         'count': len(measures),
-        'mean_price': np.mean(means),
-        'mean_variance': np.mean(variances),
-        'mean_mass': np.mean(masses)
+        'mean_price': mean_price,
+        'mean_variance': mean_variance,
+        'mean_mass': mean_mass
     }
 
 

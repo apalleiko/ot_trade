@@ -126,6 +126,11 @@ class OHLCVCache:
         metadata_path = self._get_metadata_path(cache_key)
         
         try:
+            # Store index frequency if it exists
+            index_freq = None
+            if hasattr(df.index, 'freq') and df.index.freq is not None:
+                index_freq = df.index.freq.freqstr
+            
             # Save the DataFrame to parquet format
             df.to_parquet(cache_path)
             
@@ -137,7 +142,8 @@ class OHLCVCache:
                 "end_date": end_date,
                 "num_bars": len(df),
                 "timestamp": datetime.now().timestamp(),
-                "expiry_hours": expiry_hours if expiry_hours is not None else self.default_expiry_hours
+                "expiry_hours": expiry_hours if expiry_hours is not None else self.default_expiry_hours,
+                "index_freq": index_freq  # Save index frequency
             }
             
             # Save metadata
@@ -196,6 +202,14 @@ class OHLCVCache:
             
             # Load the DataFrame
             df = pd.read_parquet(cache_path)
+            
+            # Restore index frequency if it was saved
+            index_freq = metadata.get("index_freq")
+            if index_freq and hasattr(df.index, 'freq'):
+                try:
+                    df.index.freq = pd.tseries.frequencies.to_offset(index_freq)
+                except Exception as e:
+                    logger.warning(f"Could not restore index frequency: {e}")
             
             logger.debug(f"Cache hit: {cache_key} ({len(df)} bars)")
             return df
@@ -259,6 +273,7 @@ class OHLCVCache:
         metadata_files = list(self.cache_dir.glob('*_metadata.json'))
         
         deleted_count = 0
+        current_time = datetime.now().timestamp()
         
         for metadata_path in metadata_files:
             try:
@@ -271,15 +286,32 @@ class OHLCVCache:
                 expiry_hours = metadata.get("expiry_hours", self.default_expiry_hours)
                 
                 # Calculate age in hours
-                age_hours = (datetime.now().timestamp() - timestamp) / 3600
+                age_hours = (current_time - timestamp) / 3600
                 
                 if age_hours > expiry_hours:
                     # Extract cache key from metadata filename
                     cache_key = metadata_path.stem.replace('_metadata', '')
                     
-                    # Delete the cache
-                    if self.delete_by_key(cache_key):
-                        deleted_count += 1
+                    # Delete the cache files
+                    cache_path = self._get_cache_path(cache_key)
+                    
+                    # Delete both files explicitly
+                    if cache_path.exists():
+                        try:
+                            cache_path.unlink()
+                        except Exception as e:
+                            logger.error(f"Error deleting cache file {cache_path}: {e}")
+                            continue
+                    
+                    if metadata_path.exists():
+                        try:
+                            metadata_path.unlink()
+                        except Exception as e:
+                            logger.error(f"Error deleting metadata file {metadata_path}: {e}")
+                            continue
+                    
+                    deleted_count += 1
+                    logger.debug(f"Deleted expired cache: {cache_key}")
                     
             except Exception as e:
                 logger.error(f"Error processing metadata file {metadata_path}: {e}")
@@ -287,41 +319,41 @@ class OHLCVCache:
         logger.info(f"Cleaned {deleted_count} expired cache entries")
         return deleted_count
     
-    def delete_by_key(self, cache_key: str) -> bool:
-        """
-        Delete cached data by cache key.
-        
-        Args:
-            cache_key: Cache key string
-        
-        Returns:
-            True if successfully deleted, False otherwise
-        """
-        cache_path = self._get_cache_path(cache_key)
-        metadata_path = self._get_metadata_path(cache_key)
-        
-        success = True
-        
-        # Delete cache file
-        if cache_path.exists():
-            try:
-                cache_path.unlink()
-            except Exception as e:
-                logger.error(f"Error deleting cache file: {e}")
-                success = False
-        
-        # Delete metadata file
-        if metadata_path.exists():
-            try:
-                metadata_path.unlink()
-            except Exception as e:
-                logger.error(f"Error deleting metadata file: {e}")
-                success = False
-        
-        if success:
-            logger.debug(f"Deleted cache: {cache_key}")
-        
-        return success
+def delete_by_key(self, cache_key: str) -> bool:
+    """
+    Delete cached data by cache key.
+    
+    Args:
+        cache_key: Cache key string
+    
+    Returns:
+        True if successfully deleted, False otherwise
+    """
+    cache_path = self._get_cache_path(cache_key)
+    metadata_path = self._get_metadata_path(cache_key)
+    
+    success = True
+    
+    # Delete cache file
+    if cache_path.exists():
+        try:
+            cache_path.unlink()
+        except Exception as e:
+            logger.error(f"Error deleting cache file: {e}")
+            success = False
+    
+    # Delete metadata file
+    if metadata_path.exists():
+        try:
+            metadata_path.unlink()
+        except Exception as e:
+            logger.error(f"Error deleting metadata file: {e}")
+            success = False
+    
+    if success:
+        logger.debug(f"Deleted cache: {cache_key}")
+    
+    return success
     
     def list_cache_entries(self) -> List[Dict[str, Any]]:
         """
@@ -424,18 +456,18 @@ class DatasetManager:
                 use_cache=False  # Don't use API client's cache, we have our own
             )
             
-            # Preprocess if requested
-            if preprocess and not df.empty:
-                # Import here to avoid circular imports
-                from ohlcv_transport.data.preprocessing import process_ohlcv_data
-                
-                logger.info(f"Preprocessing {len(df)} bars")
-                df = process_ohlcv_data(df)
-            
-            # Save to cache
+            # Save to cache before preprocessing
             if not df.empty:
                 self.cache.save(df, symbol, interval, start_date, end_date)
         
+        # Preprocess if requested
+        if preprocess and not df.empty:
+            # Import here to avoid circular imports
+            from ohlcv_transport.data.preprocessing import process_ohlcv_data
+            
+            logger.info(f"Preprocessing {len(df)} bars")
+            df = process_ohlcv_data(df)
+    
         # Track this dataset
         dataset_key = f"{symbol}_{interval}"
         self.datasets[dataset_key] = {
