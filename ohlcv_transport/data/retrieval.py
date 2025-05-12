@@ -314,13 +314,6 @@ def interval_to_seconds(interval: str) -> int:
         except ValueError:
             logger.warning(f"Invalid hour format: {interval}, defaulting to 1 hour")
             return 3600
-    elif 'h' in interval:
-        try:
-            hours = int(interval.replace('h', ''))
-            return hours * 3600
-        except ValueError:
-            logger.warning(f"Invalid hour format: {interval}, defaulting to 1 hour")
-            return 3600
     elif 'day' in interval:
         try:
             days = int(interval.replace('day', ''))
@@ -343,6 +336,13 @@ def interval_to_seconds(interval: str) -> int:
         except ValueError:
             logger.warning(f"Invalid month format: {interval}, defaulting to 1 month")
             return 30 * 86400
+    elif 'h' in interval:
+        try:
+            hours = int(interval.replace('h', ''))
+            return hours * 3600
+        except ValueError:
+            logger.warning(f"Invalid hour format: {interval}, defaulting to 1 hour")
+            return 3600
     else:
         logger.warning(f"Unknown interval format: {interval}, defaulting to 1 minute")
         return 60  # Default to 1 minute
@@ -452,13 +452,6 @@ def interval_to_pandas_freq(interval: str) -> Optional[str]:
         except ValueError:
             logger.warning(f"Invalid hour format for pandas frequency: {interval}")
             return None
-    elif 'h' in interval:
-        try:
-            hours = int(interval.replace('h', ''))
-            return f"{hours}H"
-        except ValueError:
-            logger.warning(f"Invalid hour format for pandas frequency: {interval}")
-            return None
     elif 'day' in interval:
         try:
             days = int(interval.replace('day', ''))
@@ -479,6 +472,13 @@ def interval_to_pandas_freq(interval: str) -> Optional[str]:
             return f"{months}M"
         except ValueError:
             logger.warning(f"Invalid month format for pandas frequency: {interval}")
+            return None
+    elif 'h' in interval:
+        try:
+            hours = int(interval.replace('h', ''))
+            return f"{hours}H"
+        except ValueError:
+            logger.warning(f"Invalid hour format for pandas frequency: {interval}")
             return None
     else:
         logger.warning(f"Unknown interval format for pandas frequency: {interval}")

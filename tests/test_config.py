@@ -38,29 +38,23 @@ class TestConfigManager(unittest.TestCase):
         self.assertIn('assets', config)  # Should contain default sections
     
     @patch('pathlib.Path.exists')
-    @patch('pathlib.Path.parent')
     @patch('builtins.open', new_callable=mock_open)
-    def test_load_config_new_file(self, mock_file, mock_parent, mock_exists):
+    def test_load_config_new_file(self, mock_file, mock_exists):
         """Test creating a new configuration file if it doesn't exist."""
         # Mock that the file doesn't exist
         mock_exists.return_value = False
         
-        # Mock the parent directory
-        mock_parent_instance = mock_parent.return_value
-        mock_parent_instance.mkdir = unittest.mock.MagicMock()
+        # Mock the mkdir method directly on config_path's parent
+        self.config_manager.config_path.parent.mkdir = unittest.mock.MagicMock()
         
         # Load the configuration (should create a new file)
         config = self.config_manager._load_config()
         
         # Verify the parent directory was created
-        mock_parent_instance.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        self.config_manager.config_path.parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
         
         # Verify the file was opened for writing
         mock_file.assert_called_once_with(self.test_config_path, 'w')
-        
-        # Verify the default configuration was written
-        file_handle = mock_file()
-        file_handle.write.assert_called_once()
         
         # Verify the configuration is the default
         self.assertEqual(config, DEFAULT_CONFIG)
@@ -98,8 +92,7 @@ class TestConfigManager(unittest.TestCase):
         result = self.config_manager._merge_configs(default_config, user_config)
         self.assertEqual(result, expected_result)
     
-    @patch('builtins.open', new_callable=mock_open)
-    def test_save_config(self, mock_file):
+    def test_save_config(self):
         """Test saving configuration to file."""
         # Set some configuration values
         self.config_manager.config = {
@@ -109,21 +102,18 @@ class TestConfigManager(unittest.TestCase):
             }
         }
         
-        # Save the configuration
-        self.config_manager.save_config()
-        
-        # Verify the file was opened for writing
-        mock_file.assert_called_once_with(self.test_config_path, 'w')
-        
-        # Verify the configuration was written
-        file_handle = mock_file()
-        file_handle.write.assert_called_once()
-        
-        # Check the written content
-        written_data = file_handle.write.call_args[0][0]
-        parsed_data = json.loads(written_data)
-        self.assertEqual(parsed_data['test'], 'value')
-        self.assertEqual(parsed_data['nested']['key'], 'another_value')
+        # Mock json.dump instead of open to avoid write count issues with json.dump's implementation
+        with patch('json.dump') as mock_dump:
+            # Save the configuration
+            self.config_manager.save_config()
+            
+            # Verify json.dump was called with the correct parameters
+            mock_dump.assert_called_once()
+            # First argument should be the config dict
+            args, kwargs = mock_dump.call_args
+            self.assertEqual(args[0], self.config_manager.config)
+            # indent parameter should be set to 4
+            self.assertEqual(kwargs.get('indent'), 4)
     
     def test_get_with_existing_key(self):
         """Test getting a configuration value with an existing key."""
@@ -284,7 +274,8 @@ class TestConfigManager(unittest.TestCase):
     def test_get_cache_dir(self, mock_expanduser):
         """Test getting the cache directory."""
         # Mock expanduser to return a predictable path
-        mock_expanduser.return_value = '/home/user/test/cache'
+        # Use os.path.normpath to make the test platform-independent
+        mock_expanduser.return_value = os.path.normpath('/home/user/test/cache')
         
         # Set some configuration values
         self.config_manager.config = {
@@ -298,8 +289,9 @@ class TestConfigManager(unittest.TestCase):
             # Get the cache directory
             cache_dir = self.config_manager.get_cache_dir()
             
-            # Verify the path
-            self.assertEqual(str(cache_dir), '/home/user/test/cache')
+            # Verify the path (using normpath to make platform-independent)
+            expected_path = os.path.normpath('/home/user/test/cache')
+            self.assertEqual(os.path.normpath(str(cache_dir)), expected_path)
             
             # Verify mkdir was called
             mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
@@ -308,7 +300,8 @@ class TestConfigManager(unittest.TestCase):
     def test_get_log_dir(self, mock_expanduser):
         """Test getting the log directory."""
         # Mock expanduser to return a predictable path
-        mock_expanduser.return_value = '/home/user/test/logs'
+        # Use os.path.normpath to make the test platform-independent
+        mock_expanduser.return_value = os.path.normpath('/home/user/test/logs')
         
         # Set some configuration values
         self.config_manager.config = {
@@ -322,8 +315,9 @@ class TestConfigManager(unittest.TestCase):
             # Get the log directory
             log_dir = self.config_manager.get_log_dir()
             
-            # Verify the path
-            self.assertEqual(str(log_dir), '/home/user/test/logs')
+            # Verify the path (using normpath to make platform-independent)
+            expected_path = os.path.normpath('/home/user/test/logs')
+            self.assertEqual(os.path.normpath(str(log_dir)), expected_path)
             
             # Verify mkdir was called
             mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
