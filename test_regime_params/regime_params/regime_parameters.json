@@ -1,0 +1,56 @@
+{
+  "regime_params": {
+    "0": {
+      "alpha": 0.75,
+      "beta": 0.4,
+      "gamma": 0.8,
+      "lambda_param": 0.4,
+      "eta": 0.02,
+      "signal_threshold": 1.2,
+      "min_holding_period": 8,
+      "max_holding_period": 240,
+      "position_size_factor": 0.8
+    },
+    "1": {
+      "alpha": 1.0,
+      "beta": 0.65,
+      "gamma": 1.0,
+      "lambda_param": 0.5,
+      "eta": 0.01,
+      "signal_threshold": 1.5,
+      "min_holding_period": 5,
+      "max_holding_period": 180,
+      "position_size_factor": 1.0
+    },
+    "2": {
+      "alpha": 1.2,
+      "beta": 0.6,
+      "gamma": 1.25,
+      "lambda_param": 0.6,
+      "eta": 0.005,
+      "signal_threshold": 2.0,
+      "min_holding_period": 3,
+      "max_holding_period": 120,
+      "position_size_factor": 0.6
+    }
+  },
+  "transition_matrix": [
+    [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ],
+    [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ],
+    [
+      0.3333333333333333,
+      0.3333333333333333,
+      0.3333333333333333
+    ]
+  ],
+  "is_calibrated": false,
+  "timestamp": 1747101044.183109
+}

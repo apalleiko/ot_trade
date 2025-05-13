@@ -1,8 +1,8 @@
 """
 Trading models for the OHLCV Optimal Transport framework.
 
-This package contains modules for constructing empirical measures from OHLCV data
-and performing optimal transport calculations.
+This package contains modules for constructing empirical measures from OHLCV data,
+performing optimal transport calculations, and detecting market regimes.
 """
 
 from ohlcv_transport.models.empirical_measures import (
@@ -29,6 +29,14 @@ from ohlcv_transport.models.transport import (
     visualize_imbalance_signal
 )
 
+from ohlcv_transport.models.regime import (
+    RegimeParameters,
+    RegimeManager,
+    calculate_regime_statistic,
+    detect_regime_changes,
+    get_regime_specific_parameters
+)
+
 __all__ = [
     # Empirical measures
     'generate_price_grid',
@@ -50,5 +58,12 @@ __all__ = [
     'calculate_imbalance_signal',
     'process_ohlcv_with_transport',
     'visualize_transport_plan',
-    'visualize_imbalance_signal'
+    'visualize_imbalance_signal',
+    
+    # Regime detection
+    'RegimeParameters',
+    'RegimeManager',
+    'calculate_regime_statistic',
+    'detect_regime_changes',
+    'get_regime_specific_parameters'
 ]
