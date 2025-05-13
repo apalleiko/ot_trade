@@ -83,7 +83,7 @@ def calculate_multi_timeframe_signal(df_dict: Dict[str, pd.DataFrame],
     
     # Find the lowest timeframe (most granular) DataFrame
     timeframes = list(df_dict.keys())
-    base_tf = min(timeframes, key=lambda x: len(df_dict[x]))
+    base_tf = max(timeframes, key=lambda x: len(df_dict[x]))
     result = df_dict[base_tf].copy()
     
     # Initialize multi-timeframe signal column
